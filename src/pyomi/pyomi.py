@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from json import dumps, loads
 from typing import Optional, Union, Dict, List, Literal
+from operator import lt, gt
 
 from .helpers import custom_hash
 
@@ -69,36 +70,60 @@ class Pyomi:
             self.db[key_value_head_key] = key_value_new_head.encode()
 
             key_head_key = self.key_delim.join([key_hash, 'head'])
+            key_toe_key = self.key_delim.join([key_hash, 'toe'])
             key_head_encoded = self.db.get(key_head_key)
+            
 
             if not key_head_encoded:
                 self.db[key_head_key] = encoded_value_dump
+                self.db[key_toe_key] = encoded_value_dump
                 continue
 
-            key_head = loads(key_head_encoded.decode())
+            
+            
+            key_toe_encoded = self.db.get(key_toe_key) 
+            
+            key_toe_dump = key_toe_encoded.decode()
+            key_head_dump = key_head_encoded.decode()
+
+            key_toe = loads(key_toe_dump)
+            key_head = loads(key_head_dump)
 
             comparable_value = parse_comparable_json(value)
 
-            if comparable_value > parse_comparable_json(key_head):
+            if (head_diff := (comparable_value - parse_comparable_json(key_head))) > 0:
                 self.db[key_head_key] = encoded_value_dump
                 self.db[self.key_delim.join([key_hash, value_hash, 'next'])] = key_head_encoded
+                self.db[self.key_delim.join([key_hash, custom_hash(key_head_dump), 'prev'])] = encoded_value_dump
+            elif (toe_diff := (parse_comparable_json(key_toe) - comparable_value)) > 0:
+                self.db[key_toe_key] = encoded_value_dump
+                self.db[self.key_delim.join([key_hash, value_hash, 'prev'])] = key_toe_encoded
+                self.db[self.key_delim.join([key_hash, custom_hash(key_toe_dump), 'next'])] = encoded_value_dump
             else:
-                leading_value_encoded = key_head_encoded
+                dir_flag = head_diff < toe_diff
+
+                leading_value_encoded = key_head_encoded if dir_flag else key_toe_encoded
+                compare_func = gt if dir_flag else lt
+                link_prop, secondary_link_prop = ('next', 'prev') if dir_flag else ('prev', 'next')
+
                 while leading_value_encoded:
                     leading_value = loads(leading_value_encoded.decode())
 
-                    if comparable_value > parse_comparable_json(leading_value):
+                    if compare_func(comparable_value, parse_comparable_json(leading_value)):
                         break
 
                     lagging_value = leading_value
-                    leading_value_encoded = self.db.get(self.key_delim.join([key_hash, custom_hash(leading_value), 'next']))
+                    leading_value_encoded = self.db.get(self.key_delim.join([key_hash, custom_hash(leading_value), link_prop]))
                     leading_value = loads(leading_value_encoded.decode())
 
-                if leading_value_encoded:
-                    self.db[self.key_delim.join([key_hash, value_hash, 'next'])] = leading_value_encoded
+                lagging_value_dump = dumps(lagging_value)
                 
-                self.db[self.key_delim.join([key_hash, custom_hash(dumps(lagging_value)), 'next'])] = encoded_value_dump
+                if leading_value_encoded:
+                    self.db[self.key_delim.join([key_hash, value_hash, link_prop])] = leading_value_encoded
+                    self.db[self.key_delim.join([key_hash, value_hash, secondary_link_prop])] = lagging_value_dump.encode()
 
+                
+                self.db[self.key_delim.join([key_hash, custom_hash(lagging_value_dump), link_prop])] = encoded_value_dump
         
         return new_head
 
