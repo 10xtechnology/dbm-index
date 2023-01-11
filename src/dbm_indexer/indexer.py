@@ -9,7 +9,7 @@ from .types import JsonDict
 
 
 
-class Pyomi:
+class Indexer:
     def __init__(self, db, key_delim='#'):
         self.db = db 
         self.key_delim = key_delim

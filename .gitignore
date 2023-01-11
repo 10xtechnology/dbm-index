@@ -1,3 +1,6 @@
 __pycache__/
 .mypy_cache/
 test.sh
+ve/
+dist/
+*.egg-info/

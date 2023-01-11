@@ -2,14 +2,14 @@ from unittest import TestCase
 from random import randint
 from json import dumps
 
-from src.pyomi import Pyomi
+from src.dbm_indexer import Indexer
 
-class TestPyomi(TestCase):
+class TestIndexer(TestCase):
     def test_create(self):
-        pyomi = Pyomi({})
-        pyomi.create({'test': 123})
+        indexer = Indexer({})
+        indexer.create({'test': 123})
         
-        self.assertEqual(pyomi.db, {
+        self.assertEqual(indexer.db, {
             '0#head': b'0', 
             'head': b'0', 
             '0#0#value': b'test', 
@@ -21,10 +21,10 @@ class TestPyomi(TestCase):
         })
 
     def test_create_multiple(self):
-        pyomi = Pyomi({})
-        pyomi.create({'test': 123})
-        pyomi.create({'test': 321})
-        self.assertEqual(pyomi.db, {
+        indexer = Indexer({})
+        indexer.create({'test': 123})
+        indexer.create({'test': 321})
+        self.assertEqual(indexer.db, {
             '0#head': b'0', 
             'head': b'1', 
             '0#0#value': b'test', 
