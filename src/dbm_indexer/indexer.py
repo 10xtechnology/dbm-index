@@ -40,7 +40,7 @@ class Indexer:
         
         return resource_id
 
-    def retrieve(self,  # TODO REMOVE DUPLICATION
+    def retrieve(self,
         filters: List[Filter] = [], 
         keys: Optional[List[str]] = None, 
         offset: int = 0, 
@@ -60,96 +60,44 @@ class Indexer:
 
             value_encoded = self.db.get(self.key_delim.join([sort_key_hash, start_prop]))
 
-            if not value_encoded:
-                return resources
-
-            value = value_encoded.decode()
-
-            value_hash = custom_hash(value)
-            key_value_id_encoded = self.db.get(self.key_delim.join([sort_key_hash, value_hash, 'head']))
-
-            if not key_value_id_encoded:
-                return resources 
-
-            key_value_id = key_value_id_encoded.decode()
-            resource_id = self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'value'])).decode()
-
-            if (retrieved_values := self._check_filters(resource_id, filters)) is not None:
-                if offset > 0:
-                    offset -= 1
-                else:
-                    limit -= 1
-                    resources.append(self._retrieve_resource(resource_id, keys, retrieved_values))
-            
-            while (offset > 0 or limit > 0) and (key_value_id_encoded := self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'next']))):
-                resource_id = self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'value'])).decode()
-
-                if (retrieved_values := self._check_filters(resource_id, filters)) is None:
-                    continue
-
-                if offset > 0:
-                    offset -= 1
-                else:
-                    limit -= 1
-                    resources.append(self._retrieve_resource(resource_id, keys, retrieved_values)) # TODO REMOVE DUPLICATION
-            
-            while (offset > 0 or limit > 0) and (value_encoded := self.db.get(self.key_delim.join([sort_key_hash, value_hash, link_prop]))):
+            while (offset > 0 or limit > 0) and value_encoded:
                 value = value_encoded.decode()
                 value_hash = custom_hash(value)
                 key_value_id_encoded = self.db.get(self.key_delim.join([sort_key_hash, value_hash, 'head']))
 
-                if not key_value_id_encoded:
-                    return resources 
+                while (offset > 0 or limit > 0) and key_value_id_encoded:
+                    key_value_id = key_value_id_encoded.decode()
+                    resource_id = self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'value'])).decode()
 
-                key_value_id = key_value_id_encoded.decode()
-                resource_id = self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'value'])).decode()
+                    if (retrieved_values := self._check_filters(resource_id, filters)) is not None:
+                        if offset > 0:
+                            offset -= 1
+                        else:
+                            limit -= 1
+                            resources.append(self._retrieve_resource(resource_id, keys, retrieved_values))
+                    
+                    key_value_id_encoded = self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'next']))
+                
+                value_encoded = self.db.get(self.key_delim.join([sort_key_hash, value_hash, link_prop]))
+
+            return resources
+        
+        else:
+            resource_id_encoded = self.db.get('head')
+
+            while (offset > 0 or limit > 0) and resource_id_encoded:
+                resource_id = resource_id_encoded.decode()
 
                 if (retrieved_values := self._check_filters(resource_id, filters)) is not None:
                     if offset > 0:
                         offset -= 1
                     else:
                         limit -= 1
-                        resources.append(self._retrieve_resource(resource_id, keys, retrieved_values))
+                        resources.append(self._retrieve_resource(resource_id, keys, retrieved_values))  
                 
-                while (offset > 0 or limit > 0) and (key_value_id_encoded := self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'next']))):
-                    resource_id = self.db.get(self.key_delim.join([sort_key_hash, value_hash, key_value_id, 'value'])).decode()
-
-                    if (retrieved_values := self._check_filters(resource_id, filters)) is None:
-                        continue
-
-                    if offset > 0:
-                        offset -= 1
-                    else:
-                        limit -= 1
-                        resources.append(self._retrieve_resource(resource_id, keys, retrieved_values)) # TODO REMOVE DUPLICATION
-            return resources
-        
-        else:
-            resource_id_encoded = self.db.get('head')
-
-            if not resource_id_encoded:
-                return resources
-
-            resource_id = resource_id_encoded.decode()
-            
-            if (retrieved_values := self._check_filters(resource_id, filters)) is not None:
-                if offset > 0:
-                    offset -= 1
-                else:
-                    limit -= 1
-                    resources.append(self._retrieve_resource(resource_id, keys, retrieved_values))  
-                
-            while (offset > 0 or limit > 0) and (resource_id_encoded := self.db.get(self.key_delim.join([resource_id, 'next']))):
-                resource_id = resource_id_encoded.decode()
-                if (retrieved_values := self._check_filters(resource_id, filters)) is None:
-                    continue
-
-                if offset > 0:
-                    offset -= 1
-                else:
-                    limit -= 1
-                    resources.append(self._retrieve_resource(resource_id, keys, retrieved_values))
+                resource_id_encoded = self.db.get(self.key_delim.join([resource_id, 'next']))
         return resources
+
 
 
     def _check_filters(self, resource_id, filters: List[Filter] = []):
