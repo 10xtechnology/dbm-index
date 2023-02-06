@@ -126,3 +126,14 @@ class TestIndexer(TestCase):
 
         self.assertEqual(resource['test'], 321)
         self.assertEqual(l1, len(indexer.db))
+
+    def test_delete(self):
+        indexer = Indexer({})
+
+        resource_id = indexer.create({
+            'hello': 'world',
+            'test': 123
+        })
+
+        indexer.delete(resource_id)
+        self.assertEqual(len(indexer.db), 0)

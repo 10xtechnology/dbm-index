@@ -97,13 +97,21 @@ class Indexer:
                 resource_id_encoded = self.db.get(self.key_delim.join([resource_id, 'next']))
         return resources
 
-    def retrieve_one(self, resource_id: int, keys: Optional[List[str]] = None):
+    def retrieve_one(self, resource_id: str, keys: Optional[List[str]] = None):
         return self._retrieve_resource(resource_id, keys=keys)
 
     def update(self, resource_id: str, update: JsonDict):
         resource_id_encoded = resource_id.encode()
+        key_id_key = self.key_delim.join([resource_id, 'head'])
 
-        for key, new_value in update.items():
+        while key_id_encoded := self.db.get(key_id_key):
+            key_id = key_id_encoded.decode()
+            key_id_key = self.key_delim.join([resource_id, key_id, 'next'])
+            key = self._retrieve_key(resource_id, key_id)
+            
+            if not (new_value := update.get(key)):
+                continue 
+
             key_hash = custom_hash(key)
 
             current_value_dump = self.db.get(self.key_delim.join([resource_id, key_hash])).decode()
@@ -119,8 +127,55 @@ class Indexer:
 
             self.db[self.key_delim.join([resource_id, key_hash])] = encoded_new_value_dump
 
-    def delete(self, resource_id: int):
-        pass 
+            
+    def delete(self, resource_id: str):
+        resource_id_encoded = resource_id.encode()
+        key_id_key = self.key_delim.join([resource_id, 'head'])
+
+        while key_id_encoded := self.db.get(key_id_key):
+            key_id = key_id_encoded.decode()
+            del self.db[key_id_key]
+            
+            key_id_key = self.key_delim.join([resource_id, key_id, 'next'])
+            key = self._retrieve_key(resource_id, key_id)
+            del self.db[self.key_delim.join([resource_id, key_id, 'value'])]
+
+            key_hash = custom_hash(key)
+
+            encoded_value_dump = self.db.get(self.key_delim.join([resource_id, key_hash]))
+            value_dump = encoded_value_dump.decode()
+
+            value_hash = custom_hash(value_dump)
+            
+            del self.db[self.key_delim.join([resource_id, key_hash])]
+
+            self._delete_filter_index(key_hash, value_hash, resource_id_encoded)
+
+        lagging_resource_id = None
+        resource_id_key = 'head'
+
+        while (retreived_resource_id_encoded := self.db.get(resource_id_key)):
+            retreived_resource_id = retreived_resource_id_encoded.decode()
+            next_retreived_resource_id_key = self.key_delim.join([retreived_resource_id, 'next'])
+            
+
+            if retreived_resource_id == resource_id:
+                next_retreived_resource_id_encoded = self.db.get(next_retreived_resource_id_key)
+                if lagging_resource_id:
+                    if next_retreived_resource_id_encoded:
+                        self.db[self.key_delim.join([lagging_resource_id, 'next'])] = next_retreived_resource_id_encoded
+                        del self.db[next_retreived_resource_id_key]
+                elif next_retreived_resource_id_encoded:                    
+                    self.db[resource_id_key] = next_retreived_resource_id_encoded
+                    del self.db[next_retreived_resource_id_key]
+                else:
+                    del self.db[resource_id_key]   
+
+                return 
+
+            resource_id_key = next_retreived_resource_id_key
+            lagging_resource_id = retreived_resource_id
+
 
     def _check_filters(self, resource_id, filters: List[Filter] = []):
         retrieved_values = {}
@@ -133,7 +188,7 @@ class Indexer:
 
     def _retrieve_resource(
         self, 
-        resource_id: int, 
+        resource_id: str, 
         keys: Optional[List[str]] = None,
         retrieved_values: JsonDict = {}
     ):
@@ -207,7 +262,8 @@ class Indexer:
 
         while (key_value_id_encoded := self.db.get(key_value_id_key)):
             key_value_id = key_value_id_encoded.decode()
-            resource_id_encoded_retreived = self.db.get(self.key_delim.join([key_hash, value_hash, key_value_id, 'value']))
+            resource_id_encoded_retreived_key = self.key_delim.join([key_hash, value_hash, key_value_id, 'value'])
+            resource_id_encoded_retreived = self.db.get(resource_id_encoded_retreived_key)
 
             next_key_value_id_key = self.key_delim.join([key_hash, value_hash, key_value_id, 'next'])
             
