@@ -98,7 +98,32 @@ class Indexer:
                 resource_id_encoded = self.db.get(self.key_delim.join([resource_id, 'next']))
         return resources
 
+    def retrieve_one(self, resource_id: int, keys: Optional[List[str]] = None):
+        return self._retrieve_resource(resource_id, keys=keys)
 
+    def update(self, resource_id: str, update: JsonDict):
+        resource_id_encoded = resource_id.encode()
+
+        for key, new_value in update.items():
+            key_hash = custom_hash(key)
+
+            current_value_dump = self.db.get(self.key_delim.join([resource_id, key_hash])).decode()
+            current_value_hash = custom_hash(current_value_dump)
+
+            new_value_dump = dumps(new_value)
+
+            new_value_hash = custom_hash(new_value_dump)
+            encoded_new_value_dump = new_value_dump.encode()
+
+            self._delete_filter_index(key_hash, current_value_hash, resource_id_encoded)
+
+            self._create_filter_index(key_hash, new_value_hash, resource_id_encoded)
+            self._create_sort_index(key_hash, new_value_hash, encoded_new_value_dump, new_value)
+
+            self.db[self.key_delim.join([resource_id, key_hash])] = encoded_new_value_dump
+
+    def delete(self):
+        pass 
 
     def _check_filters(self, resource_id, filters: List[Filter] = []):
         retrieved_values = {}
@@ -175,6 +200,41 @@ class Indexer:
 
         self.db[key_value_head_key] = key_value_id.encode()
 
+    def _delete_filter_index(self, key_hash, value_hash, resource_id_encoded):
+        lagging_key_value_id = None
+        key_value_id_key = self.key_delim.join([key_hash, value_hash, 'head'])
+        
+
+        while (key_value_id_encoded := self.db.get(key_value_id_key)):
+            key_value_id = key_value_id_encoded.decode()
+            resource_id_encoded_retreived = self.db.get(self.key_delim.join([key_hash, value_hash, key_value_id, 'value']))
+
+            next_key_value_id_key = self.key_delim.join([key_hash, value_hash, key_value_id, 'next'])
+            
+
+            if resource_id_encoded_retreived == resource_id_encoded:
+                next_key_value_id_encoded = self.db.get(next_key_value_id_key)
+                if lagging_key_value_id:
+                    if next_key_value_id_encoded:
+                        self.db[self.key_delim.join([key_hash, value_hash, lagging_key_value_id, 'next'])] = next_key_value_id_encoded
+                        del self.db[next_key_value_id_key]
+                elif next_key_value_id_encoded:                    
+                    self.db[key_value_id_key] = next_key_value_id_encoded
+                    del self.db[next_key_value_id_key]
+                else:
+                    del self.db[key_value_id_key]
+                    self._delete_sort_index(key_hash, value_hash)
+
+
+                del self.db[self.key_delim.join([key_hash, value_hash, key_value_id, 'value'])]                
+
+                return 
+
+            key_value_id_key = next_key_value_id_key
+            lagging_key_value_id = key_value_id
+
+            
+
     def _create_sort_index(self, key_hash, value_hash, encoded_value_dump, value):
         key_head_key = self.key_delim.join([key_hash, 'head'])
         key_toe_key = self.key_delim.join([key_hash, 'toe'])
@@ -228,3 +288,38 @@ class Indexer:
             
             self.db[self.key_delim.join([key_hash, value_hash, secondary_link_prop])] = lagging_value_dump.encode()
             self.db[self.key_delim.join([key_hash, custom_hash(lagging_value_dump), link_prop])] = encoded_value_dump
+
+    def _delete_sort_index(self, key_hash, value_hash):
+        prev_encoded_value_dump_key = self.key_delim.join([key_hash, value_hash, 'prev'])
+        next_encoded_value_dump_key = self.key_delim.join([key_hash, value_hash, 'next'])
+
+        prev_encoded_value_dump = self.db.get(prev_encoded_value_dump_key)
+        next_encoded_value_dump = self.db.get(next_encoded_value_dump_key)
+
+        head_key = self.key_delim.join([key_hash, 'head'])
+        toe_key = self.key_delim.join([key_hash, 'toe'])
+
+        if prev_encoded_value_dump and next_encoded_value_dump:
+            prev_value_dump = prev_encoded_value_dump.decode()
+            next_value_dump = next_encoded_value_dump.decode()
+
+            prev_value_dump_hash = custom_hash(prev_value_dump)
+            next_value_dump_hash = custom_hash(next_value_dump)
+
+            self.db[self.key_delim.join([key_hash, prev_value_dump_hash, 'next'])] = next_encoded_value_dump
+            self.db[self.key_delim.join([key_hash, next_value_dump_hash, 'prev'])] = prev_encoded_value_dump
+
+            del self.db[prev_encoded_value_dump_key]
+            del self.db[next_encoded_value_dump_key]
+
+        elif prev_encoded_value_dump:
+            self.db[head_key] = prev_encoded_value_dump
+            del self.db[prev_encoded_value_dump_key]
+
+        elif next_encoded_value_dump:
+            self.db[toe_key] = prev_encoded_value_dump
+            del self.db[next_encoded_value_dump_key]
+
+        else:
+            del self.db[toe_key]
+            del self.db[head_key]
