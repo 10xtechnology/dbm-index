@@ -35,8 +35,7 @@ class Indexer:
             self.db[self.key_delim.join([resource_id, key_hash])] = encoded_value_dump
 
             self._create_key_index(resource_id, index, key)
-            self._create_filter_index(key_hash, value_hash, resource_id_encoded)
-            self._create_sort_index(key_hash, value_hash, encoded_value_dump, value)
+            self._create_filter_index(key_hash, value_hash, resource_id_encoded, encoded_value_dump, value)
         
         return resource_id
 
@@ -116,13 +115,11 @@ class Indexer:
             encoded_new_value_dump = new_value_dump.encode()
 
             self._delete_filter_index(key_hash, current_value_hash, resource_id_encoded)
-
-            self._create_filter_index(key_hash, new_value_hash, resource_id_encoded)
-            self._create_sort_index(key_hash, new_value_hash, encoded_new_value_dump, new_value)
+            self._create_filter_index(key_hash, new_value_hash, resource_id_encoded, encoded_new_value_dump, new_value)
 
             self.db[self.key_delim.join([resource_id, key_hash])] = encoded_new_value_dump
 
-    def delete(self):
+    def delete(self, resource_id: int):
         pass 
 
     def _check_filters(self, resource_id, filters: List[Filter] = []):
@@ -187,10 +184,13 @@ class Indexer:
         if key_index > 0:
             self.db[self.key_delim.join([resource_id, resource_key_id, 'next'])] = str(key_index - 1).encode()
 
-    def _create_filter_index(self, key_hash, value_hash, resource_id_encoded, ):
+    def _create_filter_index(self, key_hash, value_hash, resource_id_encoded, encoded_value_dump, value):
         key_value_head_key = self.key_delim.join([key_hash, value_hash, 'head'])
         key_value_head_encoded = self.db.get(key_value_head_key, b'-1')
         key_value_head = int(key_value_head_encoded.decode())
+
+        if key_value_head == -1:
+            self._create_sort_index(key_hash, value_hash, encoded_value_dump, value)
 
         key_value_id = str(key_value_head + 1)
         self.db[self.key_delim.join([key_hash, value_hash, key_value_id, 'value'])] = resource_id_encoded
