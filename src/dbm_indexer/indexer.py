@@ -126,7 +126,6 @@ class Indexer:
             self._create_filter_index(key_hash, new_value_hash, resource_id_encoded, encoded_new_value_dump, new_value)
 
             self.db[self.key_delim.join([resource_id, key_hash])] = encoded_new_value_dump
-
             
     def delete(self, resource_id: str):
         resource_id_encoded = resource_id.encode()
@@ -229,7 +228,9 @@ class Indexer:
 
         if head >= 0:
             self.db[self.key_delim.join([resource_id, 'next'])] = head_encoded
-        
+        else:
+            self.db['head'] = resource_id.encode()
+
         return resource_id
 
     def _create_key_index(self, resource_id, key_index, key):
@@ -288,8 +289,6 @@ class Indexer:
 
             key_value_id_key = next_key_value_id_key
             lagging_key_value_id = key_value_id
-
-            
 
     def _create_sort_index(self, key_hash, value_hash, encoded_value_dump, value):
         key_head_key = self.key_delim.join([key_hash, 'head'])

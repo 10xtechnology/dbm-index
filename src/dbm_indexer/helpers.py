@@ -1,4 +1,5 @@
 from hashlib import sha256
+from json import dumps
 
 from .types import JsonType
 
@@ -10,10 +11,10 @@ def parse_comparable_json(x: JsonType):
     if not x:
         return 0
     elif isinstance(x, dict) or isinstance(x, list) :
-        return len(x)
+        return dumps(x)
     elif isinstance(x, int) or isinstance(x, float):
         return x 
     elif isinstance(x, str):
-        return float(x) if x.isnumeric() else len(x)
+        return float(x) if x.isnumeric() else x
     else:
         return 1 if x else 0
