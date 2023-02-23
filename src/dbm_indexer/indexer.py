@@ -179,8 +179,8 @@ class Indexer:
     def _check_filters(self, resource_id, filters: List[Filter] = []):
         retrieved_values = {}
         for f in filters:
-            value = parse_comparable_json(self._retrieve_value(resource_id, f.key)) 
-            if not getattr(operator, f.operator)(value, f.value):
+            value = self._retrieve_value(resource_id, f.key)
+            if not getattr(operator, f.operator)(parse_comparable_json(value), parse_comparable_json(f.value)):
                 return
             retrieved_values[f.key] = value
         return retrieved_values
