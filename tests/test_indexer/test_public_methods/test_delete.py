@@ -4,7 +4,7 @@ from src.dbm_indexer import Indexer
 
 
 class TestIndexerDelete(TestCase):
-    def test_delete(self):
+    def test_delete(self): # TODO MULTIPLE
         indexer = Indexer({})
 
         resource_id = indexer.create({

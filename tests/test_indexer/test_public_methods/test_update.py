@@ -4,7 +4,7 @@ from src.dbm_indexer import Indexer
 
 
 class TestIndexerUpdate(TestCase):
-    def test_update(self):
+    def test_update(self): # TODO MULTIPLE
         indexer = Indexer({})
 
         resource_id = indexer.create({
