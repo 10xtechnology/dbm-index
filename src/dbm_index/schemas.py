@@ -1,13 +1,11 @@
-
-
 from typing import Literal, List
 from dataclasses import dataclass
 
 from .types import JsonType
 
 
-@dataclass 
+@dataclass
 class Filter:
-    key: str 
+    key: str
     value: JsonType
-    operator: Literal['lt', 'le', 'eq', 'ne', 'ge', 'gt'] = 'eq'
+    operator: Literal["lt", "le", "eq", "ne", "ge", "gt"] = "eq"
