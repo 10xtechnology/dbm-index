@@ -274,7 +274,10 @@ class Indexer:
 
     def _retrieve_value(self, resource_id, key):
         key_hash = custom_hash(key)
-        return loads(self.db.get(self.key_delim.join([resource_id, key_hash])).decode())
+        value = self.db.get(self.key_delim.join([resource_id, key_hash]))
+
+        if value is not None:
+            return loads(value.decode())
 
     def _resource_id(self):
         head_encoded = self.db.get("head", b"-1")
