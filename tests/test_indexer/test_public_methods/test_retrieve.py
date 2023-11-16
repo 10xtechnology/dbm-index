@@ -72,3 +72,16 @@ class TestIndexerRetrieve(TestCase):
         indexer = Indexer({})
         response = indexer.retrieve(filters=[Filter("test", 123)])
         self.assertEqual(response, [])
+
+    def test_retrieve_dict_filter(self):
+        indexer = Indexer({})
+
+        indexer.create({"test": 1})
+        indexer.create({"test": 2})
+        indexer.create({"test": 3})
+
+        filters = [{"key": "test", "value": 1, "operator": "gt"}]
+
+        response = indexer.retrieve(filters=filters)
+
+        self.assertEqual(response, [{"id": "2", "test": 3}, {"id": "1", "test": 2}])

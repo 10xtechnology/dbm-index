@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from rtdce.enforce import enforce  # type: ignore
+
 from json import dumps, loads
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Union
 from operator import lt, gt
 
 import operator
@@ -44,13 +46,17 @@ class Indexer:
 
     def retrieve(
         self,
-        filters: List[Filter] = [],
+        filters: List[Union[Filter, dict]] = [],
         keys: Optional[List[str]] = None,
         offset: int = 0,
         limit: int = 10,
         sort_key: Optional[str] = None,
         sort_direction: Literal["asc", "desc"] = "asc",
     ):
+        filter_dataclasses = [
+            Filter(**f) if isinstance(f, dict) else f for f in filters
+        ]
+
         resources: List[dict] = []
         if limit <= 0:
             return resources
@@ -81,7 +87,9 @@ class Indexer:
                     ).decode()
 
                     if (
-                        retrieved_values := self._check_filters(resource_id, filters)
+                        retrieved_values := self._check_filters(
+                            resource_id, filter_dataclasses
+                        )
                     ) is not None:
                         if offset > 0:
                             offset -= 1
@@ -112,7 +120,9 @@ class Indexer:
                 resource_id = resource_id_encoded.decode()
 
                 if (
-                    retrieved_values := self._check_filters(resource_id, filters)
+                    retrieved_values := self._check_filters(
+                        resource_id, filter_dataclasses
+                    )
                 ) is not None:
                     if offset > 0:
                         offset -= 1
