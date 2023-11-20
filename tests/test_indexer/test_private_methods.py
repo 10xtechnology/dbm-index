@@ -30,6 +30,12 @@ class TestIndexerPrivateMethods(TestCase):
         key = indexer._retrieve_key(resource_id, "0")
         self.assertEqual(key, "hello")
 
+    def test_retrieve_non_existant_key(self):
+        indexer = Indexer({})
+        resource_id = indexer.create({})
+        value = indexer._retrieve_value(resource_id, "somerandomcrap")
+        self.assertEqual(value, None)
+
     def test_retrieve_value(self):
         indexer = Indexer({})
         resource = {"hello": "world"}

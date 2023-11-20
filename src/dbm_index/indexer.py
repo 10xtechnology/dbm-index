@@ -140,42 +140,66 @@ class Indexer:
     def retrieve_one(self, resource_id: str, keys: Optional[List[str]] = None):
         return self._retrieve_resource(resource_id, keys=keys)
 
+    def _update_entry(self, resource_id, resource_id_encoded, key_id, update):
+        key = self._retrieve_key(resource_id, key_id)
+
+        if key is None:
+            return
+
+        if not (new_value := update.pop(key, None)):
+            return
+
+        key_hash = custom_hash(key)
+
+        current_value_dump = self.db.get(
+            self.key_delim.join([resource_id, key_hash])
+        ).decode()
+        current_value_hash = custom_hash(current_value_dump)
+
+        new_value_dump = dumps(new_value)
+
+        new_value_hash = custom_hash(new_value_dump)
+        encoded_new_value_dump = new_value_dump.encode()
+
+        self._delete_filter_index(key_hash, current_value_hash, resource_id_encoded)
+        self._create_filter_index(
+            key_hash,
+            new_value_hash,
+            resource_id_encoded,
+            encoded_new_value_dump,
+            new_value,
+        )
+
+        self.db[self.key_delim.join([resource_id, key_hash])] = encoded_new_value_dump
+
     def update(self, resource_id: str, update: JsonDict):
         resource_id_encoded = resource_id.encode()
-        key_id_key = self.key_delim.join([resource_id, "head"])
+        head_key_id_key = self.key_delim.join([resource_id, "head"])
+        head_key_id_encoded = self.db.get(head_key_id_key)
+        head_key_id = head_key_id_encoded.decode()
+        key_id_key = self.key_delim.join([resource_id, head_key_id, "next"])
+
+        self._update_entry(resource_id, resource_id_encoded, head_key_id, update)
 
         while key_id_encoded := self.db.get(key_id_key):
             key_id = key_id_encoded.decode()
             key_id_key = self.key_delim.join([resource_id, key_id, "next"])
-            key = self._retrieve_key(resource_id, key_id)
 
-            if not (new_value := update.get(key)):
-                continue
+            self._update_entry(resource_id, resource_id_encoded, key_id, update)
+
+        for index, (key, value) in enumerate(update.items()):
+            value_dump = dumps(value)
+            encoded_value_dump = value_dump.encode()
 
             key_hash = custom_hash(key)
+            value_hash = custom_hash(value_dump)
 
-            current_value_dump = self.db.get(
-                self.key_delim.join([resource_id, key_hash])
-            ).decode()
-            current_value_hash = custom_hash(current_value_dump)
+            self.db[self.key_delim.join([resource_id, key_hash])] = encoded_value_dump
 
-            new_value_dump = dumps(new_value)
-
-            new_value_hash = custom_hash(new_value_dump)
-            encoded_new_value_dump = new_value_dump.encode()
-
-            self._delete_filter_index(key_hash, current_value_hash, resource_id_encoded)
+            self._create_key_index(resource_id, index + int(head_key_id), key)
             self._create_filter_index(
-                key_hash,
-                new_value_hash,
-                resource_id_encoded,
-                encoded_new_value_dump,
-                new_value,
+                key_hash, value_hash, resource_id_encoded, encoded_value_dump, value
             )
-
-            self.db[
-                self.key_delim.join([resource_id, key_hash])
-            ] = encoded_new_value_dump
 
     def delete(self, resource_id: str):
         resource_id_encoded = resource_id.encode()
@@ -183,7 +207,11 @@ class Indexer:
 
         while key_id_encoded := self.db.get(key_id_key):
             key_id = key_id_encoded.decode()
+
             del self.db[key_id_key]
+
+            if int(key_id) < 0:
+                break
 
             key_id_key = self.key_delim.join([resource_id, key_id, "next"])
             key = self._retrieve_key(resource_id, key_id)
@@ -264,6 +292,9 @@ class Indexer:
             key_id = key_id_encoded.decode()
             key = self._retrieve_key(resource_id, key_id)
 
+            if key is None:
+                return resource
+
             resource[key] = retrieved_values.get(
                 key, self._retrieve_value(resource_id, key)
             )
@@ -280,7 +311,9 @@ class Indexer:
         return resource
 
     def _retrieve_key(self, resource_id, key_id):
-        return self.db.get(self.key_delim.join([resource_id, key_id, "value"])).decode()
+        key = self.db.get(self.key_delim.join([resource_id, key_id, "value"]))
+        if key is not None:
+            return key.decode()
 
     def _retrieve_value(self, resource_id, key):
         key_hash = custom_hash(key)
