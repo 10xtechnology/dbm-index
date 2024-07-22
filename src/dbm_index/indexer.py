@@ -187,6 +187,8 @@ class Indexer:
 
             self._update_entry(resource_id, resource_id_encoded, key_id, update)
 
+        self.db[head_key_id_key] = str(int(head_key_id) + len(update)).encode()
+
         for index, (key, value) in enumerate(update.items()):
             value_dump = dumps(value)
             encoded_value_dump = value_dump.encode()
@@ -196,7 +198,7 @@ class Indexer:
 
             self.db[self.key_delim.join([resource_id, key_hash])] = encoded_value_dump
 
-            self._create_key_index(resource_id, index + int(head_key_id), key)
+            self._create_key_index(resource_id, index + int(head_key_id) + 1, key)
             self._create_filter_index(
                 key_hash, value_hash, resource_id_encoded, encoded_value_dump, value
             )
