@@ -16,3 +16,15 @@ class TestIndexerUpdate(TestCase):
 
         self.assertEqual(resource["test"], 321)
         self.assertEqual(l1, len(indexer.db))
+
+    def test_update_with_new_keys(self):
+        indexer = Indexer({})
+
+        resource_id = indexer.create({'hello': 'world'})
+
+        indexer.update(resource_id, {'test': 123})
+
+        resource = indexer.retrieve_one(resource_id)
+
+        assert resource['hello'] == 'world'
+        assert resource['test'] == 123
