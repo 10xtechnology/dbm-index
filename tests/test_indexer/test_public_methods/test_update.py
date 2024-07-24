@@ -20,11 +20,12 @@ class TestIndexerUpdate(TestCase):
     def test_update_with_new_keys(self):
         indexer = Indexer({})
 
-        resource_id = indexer.create({'hello': 'world'})
+        resource_id = indexer.create({"hello": "world"})
 
-        indexer.update(resource_id, {'test': 123})
+        indexer.update(resource_id, {"test": 123, "test1": None})
 
         resource = indexer.retrieve_one(resource_id)
 
-        assert resource['hello'] == 'world'
-        assert resource['test'] == 123
+        assert resource["hello"] == "world"
+        assert resource["test"] == 123
+        assert resource["test1"] is None

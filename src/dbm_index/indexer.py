@@ -146,7 +146,10 @@ class Indexer:
         if key is None:
             return
 
-        if not (new_value := update.pop(key, None)):
+        new_value = None
+        if key in update:
+            new_value = update.pop(key)
+        else:
             return
 
         key_hash = custom_hash(key)
