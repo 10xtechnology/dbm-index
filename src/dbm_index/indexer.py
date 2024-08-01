@@ -514,6 +514,8 @@ class Indexer:
         toe_key = self.key_delim.join([key_hash, "toe"])
 
         if prev_encoded_value_dump and next_encoded_value_dump:
+            # CASE 1: VALUES ABOVE AND BELOW
+
             prev_value_dump = prev_encoded_value_dump.decode()
             next_value_dump = next_encoded_value_dump.decode()
 
@@ -531,13 +533,19 @@ class Indexer:
             del self.db[next_encoded_value_dump_key]
 
         elif prev_encoded_value_dump:
+            # CASE 2: ONLY VALUE ABOVE
+
             self.db[head_key] = prev_encoded_value_dump
             del self.db[prev_encoded_value_dump_key]
 
         elif next_encoded_value_dump:
-            self.db[toe_key] = prev_encoded_value_dump
+            # CASE 3: ONLY VALUE BELOW
+            
+            self.db[toe_key] = next_encoded_value_dump
             del self.db[next_encoded_value_dump_key]
 
         else:
+            # CASE 4: ONLY VALUE
+
             del self.db[toe_key]
             del self.db[head_key]
