@@ -120,7 +120,7 @@ class TestIndexerPrivateMethods(TestCase):
             },
         )
 
-    def test_delete_sort_index(self):  # TODO MULTIPLE
+    def test_delete_sort_index_only_value(self):
         indexer = Indexer({})
         key = "hello"
         value = "world"
@@ -132,3 +132,72 @@ class TestIndexerPrivateMethods(TestCase):
         indexer._delete_sort_index(key_hash, value_hash)
 
         self.assertEqual(indexer.db, {})
+    
+    def test_delete_sort_index_only_above(self):
+        indexer = Indexer({})
+        key = "hello"
+        value_1 = "1"
+        value_2 = "2"
+
+        key_hash = custom_hash(key)
+
+        value_hash_1 = custom_hash(value_1)
+        encoded_value_dump_1 = dumps(value_1).encode()
+
+        value_hash_2 = custom_hash(value_2)
+        encoded_value_dump_2 = dumps(value_2).encode()
+
+        indexer._create_sort_index(key_hash, value_hash_1, encoded_value_dump_1, value_1)
+        indexer._create_sort_index(key_hash, value_hash_2, encoded_value_dump_2, value_2)
+        indexer._delete_sort_index(key_hash, value_hash_1)
+
+        for value in indexer.db.values():
+            assert value is not None
+
+
+    def test_delete_sort_index_only_below(self):
+        indexer = Indexer({})
+        key = "hello"
+        value_1 = "1"
+        value_2 = "2"
+
+        key_hash = custom_hash(key)
+
+        value_hash_1 = custom_hash(value_1)
+        encoded_value_dump_1 = dumps(value_1).encode()
+
+        value_hash_2 = custom_hash(value_2)
+        encoded_value_dump_2 = dumps(value_2).encode()
+
+        indexer._create_sort_index(key_hash, value_hash_1, encoded_value_dump_1, value_1)
+        indexer._create_sort_index(key_hash, value_hash_2, encoded_value_dump_2, value_2)
+        indexer._delete_sort_index(key_hash, value_hash_2)
+
+        for value in indexer.db.values():
+            assert value is not None
+
+    def test_delete_sort_index_above_and_below(self):
+        indexer = Indexer({})
+        key = "hello"
+        value_1 = "1"
+        value_2 = "2"
+        value_3 = "3"
+
+        key_hash = custom_hash(key)
+
+        value_hash_1 = custom_hash(value_1)
+        encoded_value_dump_1 = dumps(value_1).encode()
+
+        value_hash_2 = custom_hash(value_2)
+        encoded_value_dump_2 = dumps(value_2).encode()
+
+        value_hash_3 = custom_hash(value_3)
+        encoded_value_dump_3 = dumps(value_3).encode()
+
+        indexer._create_sort_index(key_hash, value_hash_1, encoded_value_dump_1, value_1)
+        indexer._create_sort_index(key_hash, value_hash_2, encoded_value_dump_2, value_2)
+        indexer._create_sort_index(key_hash, value_hash_3, encoded_value_dump_3, value_3)
+        indexer._delete_sort_index(key_hash, value_hash_2)
+
+        for value in indexer.db.values():
+            assert value is not None
