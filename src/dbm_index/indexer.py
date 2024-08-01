@@ -540,7 +540,7 @@ class Indexer:
 
         elif next_encoded_value_dump:
             # CASE 3: ONLY VALUE BELOW
-            
+
             self.db[toe_key] = next_encoded_value_dump
             del self.db[next_encoded_value_dump_key]
 
